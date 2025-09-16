@@ -18,6 +18,7 @@ const translations = {
     'nav.upload': 'Analyze Legal Documents',
     'nav.summary': 'Summary',
     'nav.clauses': 'Clauses',
+    'nav.compare': 'Compare',
     'nav.chat': 'Chat',
     
     // Upload
@@ -51,6 +52,20 @@ const translations = {
     'clauses.safe': 'Safe',
     'clauses.caution': 'Caution',
     'clauses.risky': 'Risky',
+    
+    // Compare
+    'compare.title': 'Compare Documents',
+    'compare.description': 'Upload two documents to compare clauses and highlight changes',
+    'compare.uploadFirst': 'Upload First Document',
+    'compare.uploadSecond': 'Upload Second Document',
+    'compare.compare': 'Compare Documents',
+    'compare.comparing': 'Comparing...',
+    'compare.noComparison': 'No comparison yet. Upload both documents to compare.',
+    'compare.documentA': 'Document A',
+    'compare.documentB': 'Document B',
+    'compare.analysis': 'Analysis',
+    'compare.changes': 'Changes',
+    'compare.impact': 'Impact',
     
     // Chat
     'chat.title': 'Chat',
@@ -93,6 +108,7 @@ const translations = {
     'nav.upload': 'Subir Documento',
     'nav.summary': 'Resumen',
     'nav.clauses': 'Cláusulas',
+    'nav.compare': 'Comparar',
     'nav.chat': 'Chat',
     
     // Upload
@@ -168,6 +184,7 @@ const translations = {
     'nav.upload': 'Télécharger Document',
     'nav.summary': 'Résumé',
     'nav.clauses': 'Clauses',
+    'nav.compare': 'Comparer',
     'nav.chat': 'Chat',
     
     // Upload
@@ -243,6 +260,7 @@ const translations = {
     'nav.upload': 'Dokument Hochladen',
     'nav.summary': 'Zusammenfassung',
     'nav.clauses': 'Klauseln',
+    'nav.compare': 'Vergleichen',
     'nav.chat': 'Chat',
     
     // Upload
@@ -318,6 +336,7 @@ const translations = {
     'nav.upload': 'कानूनी दस्तावेज़ों का विश्लेषण करें',
     'nav.summary': 'सारांश',
     'nav.clauses': 'धाराएं',
+    'nav.compare': 'तुलना',
     'nav.chat': 'चैट',
     
     // Upload
@@ -397,6 +416,7 @@ const translations = {
     'nav.upload': 'कायदेशीर दस्तावेजांचे विश्लेषण करा',
     'nav.summary': 'सारांश',
     'nav.clauses': 'कलमे',
+    'nav.compare': 'तुलना',
     'nav.chat': 'चॅट',
     
     // Upload

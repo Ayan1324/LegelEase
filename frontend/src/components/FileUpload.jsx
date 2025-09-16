@@ -5,7 +5,7 @@ import { UploadCloud, FileBadge, Loader2, Trash2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useLanguage } from '../contexts/LanguageContext.jsx'
 
-export function FileUpload({ onUploaded, centered = false, onPreviewReady }) {
+export function FileUpload({ onUploaded, centered = false, onPreviewReady, storageKey = 'a' }) {
   const { t } = useLanguage()
   const inputRef = useRef(null)
   const previewUrlRef = useRef('')
@@ -13,9 +13,11 @@ export function FileUpload({ onUploaded, centered = false, onPreviewReady }) {
   const [selectedName, setSelectedName] = useState('')
 
   useEffect(() => {
-    const savedName = localStorage.getItem('legalease_doc_name') || ''
-    if (savedName) setSelectedName(savedName)
-  }, [])
+    try {
+      const savedName = localStorage.getItem(`legalease_doc_${storageKey}_name`) || ''
+      if (savedName) setSelectedName(savedName)
+    } catch {}
+  }, [storageKey])
 
   const handleSelect = async (e) => {
     const file = e.target.files?.[0]
@@ -50,8 +52,8 @@ export function FileUpload({ onUploaded, centered = false, onPreviewReady }) {
       toast.success(t('upload.success'))
       setSelectedName(file.name)
       try {
-        localStorage.setItem('legalease_doc_id', data.doc_id)
-        localStorage.setItem('legalease_doc_name', file.name)
+        localStorage.setItem(`legalease_doc_${storageKey}_id`, data.doc_id)
+        localStorage.setItem(`legalease_doc_${storageKey}_name`, file.name)
       } catch {}
       onUploaded?.(data.doc_id)
     } catch (err) {
@@ -65,8 +67,8 @@ export function FileUpload({ onUploaded, centered = false, onPreviewReady }) {
 
   const handleRemove = () => {
     try {
-      localStorage.removeItem('legalease_doc_id')
-      localStorage.removeItem('legalease_doc_name')
+      localStorage.removeItem(`legalease_doc_${storageKey}_id`)
+      localStorage.removeItem(`legalease_doc_${storageKey}_name`)
     } catch {}
     setSelectedName('')
     onUploaded?.(null)

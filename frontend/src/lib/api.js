@@ -48,4 +48,20 @@ export async function ask(docId, question, language = 'en') {
   return res.json()
 }
 
+export async function compare(docIdA, docIdB, language = 'en') {
+  const res = await fetch(`${API}/compare`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ doc_id_a: docIdA, doc_id_b: docIdB, language })
+  })
+  if (!res.ok) {
+    let detail = 'Compare failed'
+    try { const j = await res.json(); detail = j.detail || detail } catch {}
+    const err = new Error(detail)
+    err.status = res.status
+    throw err
+  }
+  return res.json()
+}
+
 

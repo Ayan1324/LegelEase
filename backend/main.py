@@ -10,12 +10,15 @@ import pdfplumber
 from docx import Document
 from PIL import Image
 import pytesseract
+from google.cloud import vision
+import base64
+import google.generativeai as genai
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from vertex_helper import VertexClient
-from utils import split_into_clauses, simple_retrieve_context
+from .vertex_helper import VertexClient
+from .utils import split_into_clauses, simple_retrieve_context
 
 
 class SummarizeRequest(BaseModel):
@@ -32,6 +35,11 @@ class QARequest(BaseModel):
     doc_id: str
     question: str
     language: str = "en"  # User's preferred language
+class CompareRequest(BaseModel):
+    doc_id_a: str
+    doc_id_b: str
+    language: str = "en"
+
 
 
 app = FastAPI(title="LegalEase AI", version="0.1.0")
@@ -72,6 +80,24 @@ try:
 except Exception:
     TESSERACT_AVAILABLE = False
     print("Warning: Tesseract OCR not found. Image processing will not work. Install Tesseract from: https://github.com/tesseract-ocr/tesseract")
+
+CLOUD_OCR_ENABLED = os.getenv("USE_CLOUD_OCR", "false").lower() == "true"
+vision_client: vision.ImageAnnotatorClient | None = None
+if CLOUD_OCR_ENABLED:
+    try:
+        vision_client = vision.ImageAnnotatorClient()
+    except Exception as exc:
+        print(f"Warning: Could not initialize Google Vision client: {exc}")
+        vision_client = None
+
+GEMINI_OCR_ENABLED = os.getenv("USE_GEMINI_OCR", "false").lower() == "true"
+GEMINI_IMAGE_MODEL = os.getenv("GEMINI_IMAGE_MODEL", "gemini-1.5-flash")
+if GEMINI_OCR_ENABLED:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key:
+        genai.configure(api_key=api_key)
+    else:
+        print("Warning: USE_GEMINI_OCR=true but GEMINI_API_KEY is not set.")
 
 
 def detect_language(text: str) -> str:
@@ -150,28 +176,51 @@ def extract_text_from_file(file_content: bytes, filename: str) -> str:
             raise HTTPException(status_code=500, detail=f"Failed to parse DOC/DOCX: {exc}")
     
     elif file_extension in ['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'gif']:
+        # Prefer cloud OCR if enabled and available
+        if CLOUD_OCR_ENABLED and vision_client is not None:
+            try:
+                img = vision.Image(content=file_content)
+                resp = vision_client.text_detection(image=img)
+                if resp.error.message:
+                    raise RuntimeError(resp.error.message)
+                annotation = resp.full_text_annotation
+                if annotation and annotation.text:
+                    return annotation.text.strip()
+                # Fallback to Tesseract if no text found
+            except Exception as exc:
+                print(f"Vision OCR failed, falling back to Tesseract: {exc}")
+
+        # Next, try Gemini OCR if enabled
+        if GEMINI_OCR_ENABLED and os.getenv("GEMINI_API_KEY"):
+            try:
+                # Send raw bytes to Gemini as an image part
+                model = genai.GenerativeModel(GEMINI_IMAGE_MODEL)
+                response = model.generate_content([
+                    {"mime_type": f"image/{'jpeg' if file_extension in ['jpg','jpeg'] else file_extension}", "data": file_content},
+                    "Extract all readable text from this image. Return plain text only."
+                ])
+                text = getattr(response, "text", None) or str(response)
+                if text:
+                    return text.strip()
+            except Exception as exc:
+                print(f"Gemini OCR failed, falling back to Tesseract: {exc}")
+
         if not TESSERACT_AVAILABLE:
             raise HTTPException(
-                status_code=500, 
-                detail="Tesseract OCR is not installed. Please install Tesseract OCR to process image files. Visit: https://github.com/tesseract-ocr/tesseract"
+                status_code=500,
+                detail=(
+                    "OCR not available. Enable cloud OCR (USE_CLOUD_OCR) or Gemini OCR (USE_GEMINI_OCR) with valid credentials, "
+                    "or install Tesseract locally."
+                ),
             )
         try:
             image = Image.open(io.BytesIO(file_content))
-            # Convert to RGB if necessary
             if image.mode != 'RGB':
                 image = image.convert('RGB')
-            # Use OCR to extract text
             text = pytesseract.image_to_string(image)
             return text.strip()
         except Exception as exc:
-            # Check if it's a Tesseract not found error
-            if "tesseract" in str(exc).lower() or "executable" in str(exc).lower():
-                raise HTTPException(
-                    status_code=500, 
-                    detail="Tesseract OCR is not installed or not found. Please install Tesseract OCR to process image files. Visit: https://github.com/tesseract-ocr/tesseract"
-                )
-            else:
-                raise HTTPException(status_code=500, detail=f"Failed to extract text from image: {exc}")
+            raise HTTPException(status_code=500, detail=f"Failed to extract text from image: {exc}")
     
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported file format: {file_extension}")
@@ -290,4 +339,57 @@ async def qa(req: QARequest) -> Dict[str, Any]:
     result = await vertex_client.generate_text(prompt)
     return {"answer": result, "context": context}
 
+
+
+@app.post("/compare")
+async def compare(req: CompareRequest) -> Dict[str, Any]:
+    text_a = DOC_STORE.get(req.doc_id_a)
+    text_b = DOC_STORE.get(req.doc_id_b)
+    if not text_a or not text_b:
+        raise HTTPException(status_code=404, detail="One or both documents not found")
+
+    clauses_a = split_into_clauses(text_a)
+    clauses_b = split_into_clauses(text_b)
+
+    # Prepare a concise diff prompt
+    prompts = get_language_prompts(req.language)
+    instruction = (
+        "You are a senior contracts attorney. Compare Clause A and Clause B.\n"
+        "Return a JSON object with keys: changes, impact, risk_level, summary.\n"
+        "- changes: 3-6 bullet points describing concrete diffs (added/removed numbers, obligations, parties, dates).\n"
+        "- impact: 2-4 bullets: why it matters for each side (who benefits, exposure).\n"
+        "- risk_level: one of 'low' | 'medium' | 'high'.\n"
+        "- summary: one concise sentence. Do not include any other keys."
+    )
+
+    # Simple alignment by index for prototype; could be improved via semantic matching
+    max_len = max(len(clauses_a), len(clauses_b))
+    pairs = []
+    for i in range(max_len):
+        a = clauses_a[i] if i < len(clauses_a) else ""
+        b = clauses_b[i] if i < len(clauses_b) else ""
+        if not a and not b:
+            continue
+        prompt = f"{instruction}\n\nClause A:\n{a}\n\nClause B:\n{b}"
+        raw = await vertex_client.generate_text(prompt)
+        # Best-effort JSON extraction in case the model returns extra text
+        cleaned = raw.strip()
+        try:
+            import json as _json
+            start = cleaned.find('{')
+            end = cleaned.rfind('}') + 1
+            parsed = _json.loads(cleaned[start:end]) if start != -1 and end > start else {"summary": cleaned}
+        except Exception:
+            parsed = {"summary": cleaned}
+        pairs.append({
+            "index": i + 1,
+            "a": a,
+            "b": b,
+            "changes": parsed.get("changes", []),
+            "impact": parsed.get("impact", []),
+            "risk_level": parsed.get("risk_level", "unknown"),
+            "summary": parsed.get("summary", cleaned)
+        })
+
+    return {"comparisons": pairs}
 
