@@ -9,7 +9,8 @@ A modern AI-powered legal document analysis platform that instantly summarizes, 
 ### 📄 Multi-Format Document Support
 - **PDF Documents** - Full text extraction with pdfplumber
 - **Word Documents** - DOC/DOCX support with python-docx
-- **Image Files** - OCR text extraction with Tesseract (JPG, PNG, TIFF, etc.)
+- **Image Files** – OCR text extraction with **Google Cloud Vision** (JPG, PNG, TIFF, etc.)
+
 
 ### 🤖 AI-Powered Analysis
 - **Smart Summaries** - Clear, easy-to-understand document summaries
@@ -48,7 +49,7 @@ A modern AI-powered legal document analysis platform that instantly summarizes, 
 - **Google Cloud Vertex AI** for AI capabilities
 - **pdfplumber** for PDF text extraction
 - **python-docx** for Word document processing
-- **Pillow + Tesseract** for image OCR
+- **Pillow + Google Cloud Vision** for image OCR
 - **Pydantic** for data validation
 
 ## 🚀 Quick Start
@@ -57,7 +58,7 @@ A modern AI-powered legal document analysis platform that instantly summarizes, 
 - **Node.js 18+**
 - **Python 3.10+**
 - **Google Cloud Project** with Vertex AI API enabled (optional for mock mode)
-- **Tesseract OCR** for image processing (optional)
+- **Google Cloud Vision OCR** for image processing (optional)
 
 ### Installation
 
@@ -120,13 +121,6 @@ GOOGLE_CLOUD_LOCATION=us-central1
 # Optional: Custom API URL
 VITE_API_URL=http://localhost:8000
 ```
-
-### Tesseract OCR Setup (Optional)
-For image processing support:
-
-**Windows:**
-1. Download Tesseract from [GitHub](https://github.com/tesseract-ocr/tesseract)
-2. Add to PATH or set `TESSERACT_CMD` environment variable
 
 **macOS:**
 ```bash
