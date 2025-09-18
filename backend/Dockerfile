@@ -6,7 +6,7 @@ RUN apt-get update \
        build-essential \
        libjpeg62-turbo-dev \
        zlib1g-dev \
-       libtiff5 \
+       libtiff6 \
        libpng16-16 \
        poppler-utils \
     && rm -rf /var/lib/apt/lists/*
