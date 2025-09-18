@@ -17,8 +17,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .vertex_helper import VertexClient
-from .utils import split_into_clauses, simple_retrieve_context
+from vertex_helper import VertexClient
+from utils import split_into_clauses, simple_retrieve_context
 
 
 class SummarizeRequest(BaseModel):
