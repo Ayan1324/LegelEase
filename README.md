@@ -1,3 +1,116 @@
+## Hackathon: One-click-ish Deploy (Free Tiers)
+
+This guide assumes your repo is on GitHub.
+
+### 1) Backend (Render – free web service)
+1. Go to `https://render.com` → New → Web Service → Connect your GitHub repo.
+2. Root directory: `/backend`. Choose Docker as runtime (auto-detects `backend/Dockerfile`).
+3. Environment Variables:
+   - `ALLOWED_ORIGINS=*` (or your frontend URL after you have it)
+   - `MOCK_AI=true` (safe demo mode; no external AI costs)
+   - Render sets `PORT` automatically; our Dockerfile respects it.
+4. Create Web Service → wait for deploy → copy the public URL, e.g. `https://legalease-backend.onrender.com`.
+
+Optional (real AI): set `MOCK_AI=false` and add `GEMINI_API_KEY` (keep it only on backend). You can later enable OCR via `USE_CLOUD_OCR=true` (needs Google Vision) or `USE_GEMINI_OCR=true`.
+
+### 2) Frontend (Vercel – free)
+1. Go to Vercel → New Project → Import your repo → set project root to `/frontend`.
+2. Framework Preset: Vite. Build Command: `vite build`. Output Directory: `dist`.
+3. Set Environment Variables:
+   - `VITE_API_URL` = your Render backend URL (from step 1).
+4. Deploy and get the public frontend URL. Use this URL for your submission.
+
+Smoke Test
+- Open the frontend URL in Incognito → upload a PDF/DOCX → run Summarize/Clauses/QA.
+- If CORS blocks: set `ALLOWED_ORIGINS` on Render to your exact frontend URL (comma-separated if multiple).
+
+## Deployment
+
+This repo has a FastAPI backend (`backend/`) and a Vite React frontend (`frontend/`). Below are quick steps to deploy:
+
+### Backend: Google Cloud Run
+
+Prereqs:
+- gcloud CLI installed and authenticated
+- A Google Cloud project selected and billing enabled
+
+Build and deploy:
+1) From the repo root:
+```
+gcloud builds submit --tag gcr.io/$(gcloud config get-value project)/legalease-backend ./backend
+```
+2) Deploy to Cloud Run (Public, port 8080):
+```
+gcloud run deploy legalease-backend \
+  --image gcr.io/$(gcloud config get-value project)/legalease-backend \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8080 \
+  --set-env-vars ALLOWED_ORIGINS="*" \
+  --set-env-vars MOCK_AI=true
+```
+
+Notes:
+- To use real Gemini/Vertex, set env vars and service account permissions instead of `MOCK_AI=true`:
+  - `MOCK_AI=false`
+  - `GEMINI_API_KEY=<your key>` (or attach a service account with Vertex AI access and set `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`)
+  - Optional OCR: `USE_CLOUD_OCR=true` (requires Vision API + credentials) or `USE_GEMINI_OCR=true` with `GEMINI_API_KEY`
+- Lock down CORS by setting `ALLOWED_ORIGINS` to your frontend URL(s), comma-separated.
+
+After deploy, note the Cloud Run URL like `https://legalease-backend-xxxxxxxx-uc.a.run.app`.
+
+### Frontend: Vercel
+
+1) In the Vercel dashboard, import the `frontend/` directory as a project.
+2) Framework preset: Vite. Build command: `vite build`. Output dir: `dist`.
+3) Set Environment Variables (Production):
+   - `VITE_API_URL` = Cloud Run URL from above (e.g., `https://legalease-backend-...a.run.app`)
+4) Deploy.
+
+If you prefer CLI:
+```
+cd frontend
+vercel --prod
+```
+and set `VITE_API_URL` in the Vercel project settings.
+
+### Free-tier alternative
+
+Backend on Render (free web service):
+1) Push this repo to GitHub.
+2) Create a new Web Service on Render, connect the repo, root set to `/backend`.
+3) Runtime: Docker. It will auto-detect `backend/Dockerfile`.
+4) Environment:
+   - Add `PORT=10000` (Render sets it, but keeping default is fine)
+   - `ALLOWED_ORIGINS=*` for hackathon or your frontend URL
+   - `MOCK_AI=true` to avoid AI costs
+5) After deploy, copy the public URL (e.g., `https://legalease-backend.onrender.com`).
+
+Frontend on Vercel or Netlify (free):
+1) Set env `VITE_API_URL` to the Render URL.
+2) Build/deploy.
+
+### Local run (for reference)
+
+Backend:
+```
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload --port 8000
+```
+
+Frontend:
+```
+cd frontend
+npm i
+npm run dev
+```
+
+Set `VITE_API_URL` in a `.env` file inside `frontend/` to point to your backend:
+```
+VITE_API_URL=http://localhost:8000
+```
+
 # LegalEase AI
 
 **Analyze Legal Documents In Seconds, Not Hours**
