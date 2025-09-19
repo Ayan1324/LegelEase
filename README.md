@@ -24,11 +24,36 @@ Smoke Test
 - Open the frontend URL in Incognito → upload a PDF/DOCX → run Summarize/Clauses/QA.
 - If CORS blocks: set `ALLOWED_ORIGINS` on Render to your exact frontend URL (comma-separated if multiple).
 
-## Deployment
+## 🚀 Deployment
 
-This repo has a FastAPI backend (`backend/`) and a Vite React frontend (`frontend/`). Below are quick steps to deploy:
+### Google Cloud Platform (Recommended)
 
-### Backend: Google Cloud Run
+The easiest way to deploy the entire application to Google Cloud:
+
+#### Quick Deployment
+```bash
+# Windows (PowerShell)
+.\deploy.ps1
+
+# Windows (CMD)
+deploy.bat
+
+# Linux/macOS
+./deploy.sh
+```
+
+#### Manual Deployment
+See [GOOGLE_CLOUD_DEPLOYMENT.md](GOOGLE_CLOUD_DEPLOYMENT.md) for detailed instructions.
+
+**What gets deployed:**
+- **Backend**: FastAPI app on Cloud Run (auto-scaling, serverless)
+- **Frontend**: React app on Cloud Storage (static hosting)
+- **AI Integration**: Google Vertex AI or Gemini API
+- **OCR**: Google Cloud Vision API for image processing
+
+### Alternative Deployments
+
+#### Backend: Google Cloud Run
 
 Prereqs:
 - gcloud CLI installed and authenticated
@@ -51,16 +76,7 @@ gcloud run deploy legalease-backend \
   --set-env-vars MOCK_AI=true
 ```
 
-Notes:
-- To use real Gemini/Vertex, set env vars and service account permissions instead of `MOCK_AI=true`:
-  - `MOCK_AI=false`
-  - `GEMINI_API_KEY=<your key>` (or attach a service account with Vertex AI access and set `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`)
-  - Optional OCR: `USE_CLOUD_OCR=true` (requires Vision API + credentials) or `USE_GEMINI_OCR=true` with `GEMINI_API_KEY`
-- Lock down CORS by setting `ALLOWED_ORIGINS` to your frontend URL(s), comma-separated.
-
-After deploy, note the Cloud Run URL like `https://legalease-backend-xxxxxxxx-uc.a.run.app`.
-
-### Frontend: Vercel
+#### Frontend: Vercel
 
 1) In the Vercel dashboard, import the `frontend/` directory as a project.
 2) Framework preset: Vite. Build command: `vite build`. Output dir: `dist`.
